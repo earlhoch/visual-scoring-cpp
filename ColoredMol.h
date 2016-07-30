@@ -8,11 +8,12 @@ class ColoredMol
     void print();
 
     private:
-    std::string ligName, recName, model, weights, outRec, outLig; 
+    std::string ligName, recName, hLig, hRec, model, weights, outRec, outLig; 
     OpenBabel::OBMol ligMol, recMol;
     float size;
     bool no_frag, verbose;
 
+    void addHydrogens();
     void removeAndScore(int ia[]);
     float score();
     void writeScores();

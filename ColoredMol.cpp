@@ -31,6 +31,7 @@ void ColoredMol::color()
     std::cout << "Number of lig atoms: " << ligMol.NumAtoms() << '\n';
     std::cout << "Number of rec atoms: " << recMol.NumAtoms() << '\n';
 
+    addHydrogens();
     removeAndScore(x);
 }
 
@@ -45,7 +46,6 @@ void ColoredMol::print()
     std::cout << "no_frag: " << no_frag << '\n';
     std::cout << "verbose: " << verbose << '\n';
 }
-
 
 void ColoredMol::removeAndScore(int ia[])
 {
@@ -155,6 +155,19 @@ void ColoredMol::removeAndScore(int ia[])
     conv.ReadString(&temp, ss.str());
     std::cout << "temp atoms: " << temp.NumAtoms() << '\n';
 }
+void ColoredMol::addHydrogens()
+{
+    std::cout << "adding hydrogens\n";
+    recMol.AddHydrogens();
+    ligMol.AddHydrogens();
+
+    OBConversion conv;
+    conv.SetOutFormat("PDB");
+
+    hRec = conv.WriteString(&recMol);
+    hLig = conv.WriteString(&ligMol);
+}
+
 float ColoredMol::score(){return 1.11;}
 void ColoredMol::writeScores(){}
 bool ColoredMol::inRange(){}
