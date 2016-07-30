@@ -1,0 +1,19 @@
+class ColoredMol
+{
+    public:
+    ColoredMol(std::string inLigName, std::string inRecName, std::string inModel, std::string inWeights, float inSize, std::string inOutRec = "", std::string inOutLig = "", bool inNo_frag = false, bool inVerbose = false);
+    void color();
+    void print();
+
+    private:
+    std::string ligName, recName, model, weights, outRec, outLig; 
+    float size;
+    bool no_frag, verbose;
+
+    void removeAndScore(int ia[]);
+    float score();
+    void writeScores();
+    bool inRange();
+    int transform();
+    void removeResidues();
+};
