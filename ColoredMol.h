@@ -1,3 +1,5 @@
+#include <openbabel/mol.h>
+
 class ColoredMol
 {
     public:
@@ -7,6 +9,7 @@ class ColoredMol
 
     private:
     std::string ligName, recName, model, weights, outRec, outLig; 
+    OpenBabel::OBMol ligMol, recMol;
     float size;
     bool no_frag, verbose;
 

@@ -22,6 +22,16 @@ ColoredMol::ColoredMol (std::string inLigName, std::string inRecName, std::strin
 void ColoredMol::color()
 {
     std::cout << "color called" << '\n';
+    OBConversion conv;
+    conv.SetInFormat("PDB");
+    conv.ReadFile(&ligMol, ligName);
+    conv.ReadFile(&recMol, recName);
+    int x [] = {2, 24, 25};
+
+    std::cout << "Number of lig atoms: " << ligMol.NumAtoms() << '\n';
+    std::cout << "Number of rec atoms: " << recMol.NumAtoms() << '\n';
+
+    removeAndScore(x);
 }
 
 void ColoredMol::print()
@@ -39,7 +49,7 @@ void ColoredMol::print()
 
 void ColoredMol::removeAndScore(int ia[])
 {
-    std::cout << ia[0];
+    std::stringstream ss;
     std::ifstream file;
     file.open("3gvu_lig.pdb", std::ios::in);
 
@@ -81,10 +91,11 @@ void ColoredMol::removeAndScore(int ia[])
                         hit = false;
                         for(auto j = 0; j != sizeof(&ia); ++j) //list to remove
                         {
-                            std::cout << *i << "|" << ia[j] << '\n';
+                            //std::cout << *i << "|" << ia[j] << '\n';
                             if(*i == ia[j]) //number in removal list
                             {
                                 hit = true;
+                                break;
                             }
                         }
 
@@ -94,22 +105,58 @@ void ColoredMol::removeAndScore(int ia[])
                         }
                 }
 
-                std::cout << hit << '\n';
-                std::cout << line.substr(0,11) << " ";
                 outNums.sort();
                 outNums.unique();
-                for(auto k = outNums.begin(); k != outNums.end() ; ++k)
+
+                if (outNums.size() > 0) //don't print line if no atoms to connect
                 {
-                    std::cout << "|" << *k << "|";
+
+                    ss << "CONECT";
+                    ss.width(5);
+                    ss << std::right << firstNum;
+                    for ( auto i = outNums.begin(); i != outNums.end(); ++i)
+                    {
+                        ss.width(5);
+                        ss << std::right << *i;
+                    }
+                    ss << '\n';
                 }
-                std::cout << '\n';
+
+                outNums.clear();
+
             }
         }
+        if(line.find("HETATM") < std::string::npos)
+        {
+            bool keepLine = true;
+            std::string indexString = line.substr(6,5);
+            int index = std::stoi(indexString);
+
+            for( int i = 0; i != sizeof(&ia); ++i)
+            {
+                if (ia[i] == index)
+                {
+                    keepLine = false;
+                    break;
+                }
+            }
+            if ( keepLine )
+            {
+                ss << line << '\n';
+            }
+
+        }
     }
+    std::cout << "Score: " << score() << '\n';
+
+    OBConversion conv;
+    OBMol temp;
+    conv.SetInFormat("PDB");
+    conv.ReadString(&temp, ss.str());
+    std::cout << "temp atoms: " << temp.NumAtoms() << '\n';
 }
-float ColoredMol::score(){}
+float ColoredMol::score(){return 1.11;}
 void ColoredMol::writeScores(){}
 bool ColoredMol::inRange(){}
 int ColoredMol::transform(){}
 void ColoredMol::removeResidues(){}
-

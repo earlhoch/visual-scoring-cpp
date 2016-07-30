@@ -4,7 +4,7 @@
 int main()
 {
     int x [5] = {1, 2, 3, 4, 5};
-    std::string ligName = "/home/jeh176/3gvu_lig.pdb";
+    std::string ligName = "3gvu_lig.pdb";
     std::string recName = "3gvu_rec.pdb";
     std::string model = "model";
     std::string weights = "weights";
@@ -17,4 +17,6 @@ int main()
     ColoredMol cMol = ColoredMol(ligName, recName, model, weights, size, outRec, outLig, no_frag, verbose);
     cMol.color();
     cMol.print();
+
+    return 0;
 }
