@@ -11,10 +11,12 @@ class ColoredMol
     std::string ligName, recName, hLig, hRec, model, weights, outRec, outLig; 
     OpenBabel::OBMol ligMol, recMol;
     float size;
+    float cenCoords [3];
     bool no_frag, verbose;
 
     void addHydrogens();
     void removeAndScore(int ia[]);
+    void ligCenter();
     float score();
     void writeScores();
     bool inRange();

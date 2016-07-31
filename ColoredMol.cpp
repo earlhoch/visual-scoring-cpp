@@ -171,5 +171,14 @@ void ColoredMol::addHydrogens()
 float ColoredMol::score(){return 1.11;}
 void ColoredMol::writeScores(){}
 bool ColoredMol::inRange(){}
+
+void ColoredMol::ligCenter()
+{
+    vector3 cen = ligMol.Center(0);
+    cenCoords[0] = cen.GetX();
+    cenCoords[1] = cen.GetY();
+    cenCoords[2] = cen.GetZ();
+}
+
 int ColoredMol::transform(){}
 void ColoredMol::removeResidues(){}

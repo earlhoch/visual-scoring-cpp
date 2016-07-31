@@ -16,7 +16,7 @@ int main()
 
     ColoredMol cMol = ColoredMol(ligName, recName, model, weights, size, outRec, outLig, no_frag, verbose);
     cMol.color();
-    cMol.print();
+    //cMol.print();
 
     return 0;
 }
