@@ -21,6 +21,9 @@ ColoredMol::ColoredMol (std::string inLigName, std::string inRecName, std::strin
 
 void ColoredMol::color()
 {
+    std::vector<float> test = {-58.3, 1.23, 2.34, 3.45};
+    std::list<int> test2 = {400, 1000};
+    transform(test);
     std::cout << "color called" << '\n';
     OBConversion conv;
     conv.SetInFormat("PDB");
@@ -32,6 +35,8 @@ void ColoredMol::color()
     std::cout << "Number of rec atoms: " << recMol.NumAtoms() << '\n';
 
     addHydrogens();
+    ligCenter();
+    std::cout << "inRange: " << inRange(test2) << '\n';
     removeAndScore(x);
 }
 
@@ -170,7 +175,37 @@ void ColoredMol::addHydrogens()
 
 float ColoredMol::score(){return 1.11;}
 void ColoredMol::writeScores(){}
-bool ColoredMol::inRange(){}
+bool ColoredMol::inRange(std::list<int> atomList)
+{
+    float x = cenCoords[0];
+    float y = cenCoords[1];
+    float z = cenCoords[2];
+
+    float allowedDist = size / 2;
+    int numAtoms = recMol.NumAtoms();
+
+    OBAtom* atom;
+    for( auto i = atomList.begin(); i != atomList.end(); ++i)
+    {
+        if (*i >= numAtoms)
+        {
+            return false;
+        }
+
+        atom = recMol.GetAtom(*i);
+        if(atom->GetX() < x + allowedDist)
+            if (atom->GetY() < y + allowedDist)
+                if (atom->GetZ() < z + allowedDist)
+                    if (atom->GetX() > x - allowedDist)
+                        if (atom->GetY() > y - allowedDist)
+                            if (atom->GetZ() > z - allowedDist)
+                                return true;
+    }
+
+        return false;
+}
+
+
 
 void ColoredMol::ligCenter()
 {
@@ -178,7 +213,36 @@ void ColoredMol::ligCenter()
     cenCoords[0] = cen.GetX();
     cenCoords[1] = cen.GetY();
     cenCoords[2] = cen.GetZ();
+    std::cout << cenCoords[0] << "|" << cenCoords[1] << "|" << cenCoords[2] << '\n';
 }
 
-int ColoredMol::transform(){}
+std::vector<float> ColoredMol::transform(std::vector<float> inList)
+{
+    std::vector<float> outList (inList.size());
+    float tempVal;
+    for (int i = 0; i < inList.size(); ++i)
+    {
+        tempVal = inList[i];
+        if(tempVal < 0)
+        {
+            tempVal = 0 - std::sqrt(std::abs(tempVal));
+        }
+        else
+        {
+            tempVal = std::sqrt(tempVal);
+        }
+
+        tempVal = tempVal * 100;
+        std::cout << inList[i] << " : " << tempVal << '\n';
+
+        outList[i] = tempVal;
+    }
+
+    for (int i = 0; i < outList.size(); ++i)
+    {
+        std::cout << outList[i] << '\n';
+    }
+
+    return outList;
+}
 void ColoredMol::removeResidues(){}

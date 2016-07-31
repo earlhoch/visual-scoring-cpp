@@ -19,7 +19,7 @@ class ColoredMol
     void ligCenter();
     float score();
     void writeScores();
-    bool inRange();
-    int transform();
+    bool inRange(std::list<int> atomList);
+    std::vector<float> transform(std::vector<float> inList);
     void removeResidues();
 };
