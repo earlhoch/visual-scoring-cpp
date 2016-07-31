@@ -9,7 +9,7 @@ class ColoredMol
 
     private:
     std::string ligName, recName, hLig, hRec, model, weights, outRec, outLig; 
-    OpenBabel::OBMol ligMol, recMol;
+    OpenBabel::OBMol ligMol, recMol, hLigMol, hRecMol;
     float size;
     float cenCoords [3];
     bool no_frag, verbose;
@@ -18,7 +18,7 @@ class ColoredMol
     void removeAndScore(int ia[]);
     void ligCenter();
     float score();
-    void writeScores();
+    void writeScores(std::vector<float> scoreList, bool isRec);
     bool inRange(std::list<int> atomList);
     std::vector<float> transform(std::vector<float> inList);
     void removeResidues();

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <openbabel/obconversion.h>
 #include <openbabel/mol.h>
 #include "ColoredMol.h"
@@ -21,23 +22,33 @@ ColoredMol::ColoredMol (std::string inLigName, std::string inRecName, std::strin
 
 void ColoredMol::color()
 {
+    std::cout << "color called" << '\n';
     std::vector<float> test = {-58.3, 1.23, 2.34, 3.45};
     std::list<int> test2 = {400, 1000};
     transform(test);
-    std::cout << "color called" << '\n';
     OBConversion conv;
     conv.SetInFormat("PDB");
     conv.ReadFile(&ligMol, ligName);
     conv.ReadFile(&recMol, recName);
     int x [] = {2, 24, 25};
 
+
     std::cout << "Number of lig atoms: " << ligMol.NumAtoms() << '\n';
     std::cout << "Number of rec atoms: " << recMol.NumAtoms() << '\n';
 
     addHydrogens();
+
     ligCenter();
     std::cout << "inRange: " << inRange(test2) << '\n';
     removeAndScore(x);
+
+    std::vector<float> writeTest (hRecMol.NumAtoms(), 0.00);
+    writeTest[2] = 3.45;
+    writeTest[488] = 818.93;
+    writeTest[3] = 0.0323343;
+    writeTest[4] = 999999999;
+    writeTest[5] = 48.45555555;
+    writeScores(writeTest, true);
 }
 
 void ColoredMol::print()
@@ -168,13 +179,83 @@ void ColoredMol::addHydrogens()
 
     OBConversion conv;
     conv.SetOutFormat("PDB");
+    conv.SetInFormat("PDB");
 
     hRec = conv.WriteString(&recMol);
     hLig = conv.WriteString(&ligMol);
+
+    conv.ReadString(&hRecMol, hRec);
+    conv.ReadString(&hLigMol, hLig);
+
+    std::cout << "finished adding hydrogens\n";
 }
 
 float ColoredMol::score(){return 1.11;}
-void ColoredMol::writeScores(){}
+void ColoredMol::writeScores(std::vector<float> scoreList, bool isRec)
+{
+    std::string filename;
+    std::string molString;
+    if(isRec)
+    {
+        filename = outRec;
+        molString = hRec;
+    }
+    else
+    {
+        filename = outLig;
+        molString = hLig;
+    }
+
+    std::ofstream outFile;
+    outFile.open(filename);
+
+    outFile << "CNN MODEL: " << model << '\n';
+    outFile << "CNN WEIGHTS: " << model << '\n';
+
+    std::stringstream molStream(molString);
+    std::string line;
+    std::string indexString;
+    int index;
+    std::stringstream scoreStream;
+    std::string scoreString;
+    while(std::getline(molStream, line))
+    {
+        if ((line.find("ATOM") < std::string::npos) || 
+            (line.find("HETATM") < std::string::npos))
+        {
+            scoreStream.str(""); //clear stream for next score
+            indexString = line.substr(6,5);
+            index = std::stoi(indexString);
+
+            if ((scoreList[index] > 0.001) || (scoreList[index] < -0.001))
+            {
+                scoreStream << std::fixed << std::setprecision(5) << scoreList[index];
+                
+                outFile << line.substr(0,61);
+                scoreString = scoreStream.str();
+                scoreString.resize(5);
+                outFile.width(5);
+                outFile.fill('.');
+                outFile << std::right << scoreString;
+                outFile << line.substr(66) << '\n';
+
+            }
+            else
+            {
+                outFile << line << '\n';
+            }
+
+
+        }
+        else
+        {
+            outFile << line << '\n';
+        }
+
+    }
+}
+
+
 bool ColoredMol::inRange(std::list<int> atomList)
 {
     float x = cenCoords[0];
