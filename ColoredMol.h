@@ -1,4 +1,5 @@
 #include <openbabel/mol.h>
+#include <set>
 
 class ColoredMol
 {
@@ -8,14 +9,14 @@ class ColoredMol
     void print();
 
     private:
-    std::string ligName, recName, hLig, hRec, model, weights, outRec, outLig; 
+    std::string ligName, recName, hRec, hLig, model, weights, outRec, outLig; 
     OpenBabel::OBMol ligMol, recMol, hLigMol, hRecMol;
     float size;
     float cenCoords [3];
     bool no_frag, verbose;
 
     void addHydrogens();
-    void removeAndScore(int ia[]);
+    void removeAndScore(std::set<int> removeList, bool isRec);
     void ligCenter();
     float score();
     void writeScores(std::vector<float> scoreList, bool isRec);

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <iomanip>
+#include <set>
 #include <openbabel/obconversion.h>
 #include <openbabel/mol.h>
 #include "ColoredMol.h"
@@ -25,6 +26,7 @@ void ColoredMol::color()
     std::cout << "color called" << '\n';
     std::vector<float> test = {-58.3, 1.23, 2.34, 3.45};
     std::list<int> test2 = {400, 1000};
+    std::set<int> test3 = {400, 1000};
     transform(test);
     OBConversion conv;
     conv.SetInFormat("PDB");
@@ -37,10 +39,8 @@ void ColoredMol::color()
     std::cout << "Number of rec atoms: " << recMol.NumAtoms() << '\n';
 
     addHydrogens();
-
     ligCenter();
     std::cout << "inRange: " << inRange(test2) << '\n';
-    removeAndScore(x);
 
     std::vector<float> writeTest (hRecMol.NumAtoms(), 0.00);
     writeTest[2] = 3.45;
@@ -49,6 +49,14 @@ void ColoredMol::color()
     writeTest[4] = 999999999;
     writeTest[5] = 48.45555555;
     writeScores(writeTest, true);
+    
+    /*
+    std::cout << "before\n";
+    removeResidues();
+    std::cout << "after\n";
+    */
+
+    removeAndScore(test3, true);
 }
 
 void ColoredMol::print()
@@ -63,14 +71,23 @@ void ColoredMol::print()
     std::cout << "verbose: " << verbose << '\n';
 }
 
-void ColoredMol::removeAndScore(int ia[])
+void ColoredMol::removeAndScore(std::set<int> removeList, bool isRec)
 {
+    std::string molString;
+    if(isRec)
+    {
+        molString = hRec;
+    }
+    else
+    {
+        molString = hLig;
+    }
+
     std::stringstream ss;
-    std::ifstream file;
-    file.open("3gvu_lig.pdb", std::ios::in);
+    std::stringstream molStream(molString);
 
     std::string line;
-    while(std::getline(file, line))
+    while(std::getline(molStream, line))
     {
         std::vector<int> conNums;
         if(line.find("CONECT") < std::string::npos)
@@ -89,9 +106,9 @@ void ColoredMol::removeAndScore(int ia[])
 
             bool valid = true;
 
-            for(auto j = 0; j != sizeof(&ia); ++j) //list to remove
+            for( auto j = removeList.begin(); j != removeList.end(); ++j) // list to remove
             {
-                if (firstNum == ia[j]) //first CONECT record is in list, remove whole line
+                if (firstNum == *j) //first CONECT record is in list, remove whole line
                 {
                     valid = false;
                     break;
@@ -105,10 +122,10 @@ void ColoredMol::removeAndScore(int ia[])
                 for(auto i = conNums.begin(); i != conNums.end() ; ++i) //list of nums in line
                 {
                         hit = false;
-                        for(auto j = 0; j != sizeof(&ia); ++j) //list to remove
+                        for( auto j = removeList.begin(); j != removeList.end(); ++j) // list to remove
                         {
                             //std::cout << *i << "|" << ia[j] << '\n';
-                            if(*i == ia[j]) //number in removal list
+                            if(*i == *j) //number in removal list
                             {
                                 hit = true;
                                 break;
@@ -142,15 +159,16 @@ void ColoredMol::removeAndScore(int ia[])
 
             }
         }
-        if(line.find("HETATM") < std::string::npos)
+        if((line.find("HETATM") < std::string::npos) ||
+            (line.find("ATOM") < std::string::npos))
         {
             bool keepLine = true;
             std::string indexString = line.substr(6,5);
             int index = std::stoi(indexString);
 
-            for( int i = 0; i != sizeof(&ia); ++i)
+            for( auto i = removeList.begin(); i != removeList.end(); ++i) // list to remove
             {
-                if (ia[i] == index)
+                if (*i == index)
                 {
                     keepLine = false;
                     break;
@@ -160,15 +178,26 @@ void ColoredMol::removeAndScore(int ia[])
             {
                 ss << line << '\n';
             }
+            else
+            {
+                std::cout << "removing line below\n";
+                std::cout << line << '\n';
+            }
 
         }
     }
     std::cout << "Score: " << score() << '\n';
-
+    std::cout << "STARTING REC\n";
+    std::cout << molString;
+    std::cout << "ENDING REC\n";
+    std::cout << "STARTING TEMP\n";
+    std::cout << ss.str();
+    std::cout << "ENDING TEMP\n";
     OBConversion conv;
     OBMol temp;
     conv.SetInFormat("PDB");
     conv.ReadString(&temp, ss.str());
+    std::cout << "h atoms: " << hRecMol.NumAtoms() << '\n';
     std::cout << "temp atoms: " << temp.NumAtoms() << '\n';
 }
 void ColoredMol::addHydrogens()
@@ -227,10 +256,9 @@ void ColoredMol::writeScores(std::vector<float> scoreList, bool isRec)
             indexString = line.substr(6,5);
             index = std::stoi(indexString);
 
-            if ((scoreList[index] > 0.001) || (scoreList[index] < -0.001))
+            if ((scoreList[index] > 0.001) || (scoreList[index] < -0.001)) //ignore very small scores
             {
                 scoreStream << std::fixed << std::setprecision(5) << scoreList[index];
-                
                 outFile << line.substr(0,61);
                 scoreString = scoreStream.str();
                 scoreString.resize(5);
@@ -244,8 +272,6 @@ void ColoredMol::writeScores(std::vector<float> scoreList, bool isRec)
             {
                 outFile << line << '\n';
             }
-
-
         }
         else
         {
@@ -326,4 +352,60 @@ std::vector<float> ColoredMol::transform(std::vector<float> inList)
 
     return outList;
 }
-void ColoredMol::removeResidues(){}
+void ColoredMol::removeResidues()
+{
+    std::cout << "help";
+    std::vector<float> scoreDict;
+    std::string lastRes = "";
+    std::string currRes;
+    std::set<int> atomList;
+    std::set<std::string> resList;
+
+
+    std::cout << '\n' << hLig.back() << '\n';
+
+    std::string molString = hRec;
+    std::stringstream molStream(molString);
+    std::string line;
+    while(std::getline(molStream, line))
+    {
+        if((line.find("ATOM") < std::string::npos) ||
+           (line.find("HETATM") < std::string::npos))
+        {
+            currRes = line.substr(23,4);
+            std::cout << currRes << '\n';
+            if(line.substr(23,4) != lastRes)
+            {
+                resList.insert(currRes);
+                std::cout << "Adding ^\n";
+                lastRes = currRes;
+            }
+        }
+    }
+
+    for( auto i = resList.begin(); i != resList.end(); ++i)
+    {
+        molStream = std::stringstream(molString);
+        std::cout << "RES: " << *i << '\n';
+        while(std::getline(molStream, line))
+        {
+            if((line.find("ATOM") < std::string::npos) ||
+               (line.find("HETATM") < std::string::npos))
+            {
+                if(line.substr(23,4) == *i)
+                {
+                    std::string indexString = line.substr(6,5);
+                    int index = std::stoi(indexString);
+                    std::cout << index << '\n';
+                    atomList.insert(index);
+                }
+                removeAndScore(atomList, true);
+            }
+        }
+
+
+    }
+    
+}
+
+
