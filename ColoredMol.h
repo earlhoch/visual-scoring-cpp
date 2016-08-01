@@ -16,7 +16,7 @@ class ColoredMol
     bool no_frag, verbose;
 
     void addHydrogens();
-    void removeAndScore(std::set<int> removeList, bool isRec);
+    float removeAndScore(std::set<int> removeList, bool isRec);
     void ligCenter();
     float score();
     void writeScores(std::vector<float> scoreList, bool isRec);
