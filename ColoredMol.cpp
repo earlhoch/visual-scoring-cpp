@@ -19,6 +19,7 @@ ColoredMol::ColoredMol (std::string inLigName, std::string inRecName, std::strin
         outLig = inOutLig;
         no_frag = inNo_frag;
         verbose = inVerbose;
+
     }
 
 void ColoredMol::color()
@@ -117,7 +118,7 @@ float ColoredMol::removeAndScore(std::set<int> removeList, bool isRec)
 
             if(valid)
             {
-                std::list<int> outNums;
+                std::set<int> outNums;
                 bool hit;
                 for(auto i = conNums.begin(); i != conNums.end() ; ++i) //list of nums in line
                 {
@@ -134,12 +135,9 @@ float ColoredMol::removeAndScore(std::set<int> removeList, bool isRec)
 
                         if (!(hit))
                         {
-                            outNums.push_back(*i);
+                            outNums.insert(*i);
                         }
                 }
-
-                outNums.sort();
-                outNums.unique();
 
                 if (outNums.size() > 0) //don't print line if no atoms to connect
                 {
