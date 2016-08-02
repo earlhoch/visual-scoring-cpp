@@ -56,8 +56,10 @@ void ColoredMol::color()
     std::cout << "after\n";
     */
 
-    float garbage = removeAndScore(test3, true);
-    removeResidues();
+    //float garbage = removeAndScore(test3, true);
+
+    //removeResidues();
+    removeEachAtom();
 }
 
 void ColoredMol::print()
@@ -216,7 +218,8 @@ float ColoredMol::removeAndScore(std::set<int> removeList, bool isRec)
         }
     }
     float scoreVal = score();
-    std::cout << "Score: " << scoreVal << '\n';
+
+    std::cout << ss.str();
 
     return scoreVal;
 }
@@ -440,5 +443,35 @@ void ColoredMol::removeResidues()
 
     writeScores(scoreDict, true);
 }
+
+void ColoredMol::removeEachAtom()
+{
+    std::vector<float> scoreDict(hLigMol.NumAtoms());
+    std::stringstream ss (hLig);
+    std::string line;
+
+    std::string indexString;
+    int index;
+    std::set<int> removeList;
+    float scoreVal;
+
+    while(std::getline(ss, line))
+    {
+        if ((line.find("ATOM") < std::string::npos) ||
+            (line.find("HETATM") < std::string::npos))
+        {
+            indexString = line.substr(6, 5);
+            index = std::stoi(indexString);
+            removeList.insert(index);
+
+            scoreVal = removeAndScore(removeList, false);
+
+            scoreDict[index] = scoreVal;
+            removeList.clear();
+        }
+    }
+
+}
+
 
 

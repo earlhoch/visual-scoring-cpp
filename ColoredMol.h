@@ -23,4 +23,5 @@ class ColoredMol
     bool inRange(std::set<int> atomList);
     std::vector<float> transform(std::vector<float> inList);
     void removeResidues();
+    void removeEachAtom();
 };
