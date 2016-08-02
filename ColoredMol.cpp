@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <set>
 #include <openbabel/obconversion.h>
+#include <openbabel/obiter.h>
 #include <openbabel/mol.h>
 #include "ColoredMol.h"
 
@@ -25,7 +26,6 @@ ColoredMol::ColoredMol (std::string inLigName, std::string inRecName, std::strin
 void ColoredMol::color()
 {
     std::cout << "color called" << '\n'; std::vector<float> test = {-58.3, 1.23, 2.34, 3.45};
-    std::list<int> test2 = {400, 1000};
     std::set<int> test3 = {400, 1000};
     transform(test);
     OBConversion conv;
@@ -40,7 +40,7 @@ void ColoredMol::color()
 
     addHydrogens();
     ligCenter();
-    std::cout << "inRange: " << inRange(test2) << '\n';
+    std::cout << "inRange: " << inRange(test3) << '\n';
 
     std::vector<float> writeTest (hRecMol.NumAtoms(), 0.00);
     writeTest[2] = 3.45;
@@ -75,14 +75,45 @@ void ColoredMol::print()
 float ColoredMol::removeAndScore(std::set<int> removeList, bool isRec)
 {
     std::string molString;
+    OBMol mol;
     if(isRec)
     {
         molString = hRec;
+        mol = hRecMol;
     }
     else
     {
         molString = hLig;
+        mol = hLigMol;
     }
+
+    if(!(isRec))
+    {
+        OBAtom* atom;
+        for(auto i = removeList.begin(); i != removeList.end(); ++i)
+        {
+            atom = mol.GetAtom(*i);
+            FOR_NBORS_OF_ATOM(neighbor, atom)
+            {
+                if(neighbor->GetAtomicNum() == 1)
+                {
+                    std::cout << "adding: " << neighbor->GetIdx() << '\n';
+                    removeList.insert(neighbor->GetIdx());
+                }
+            }
+        }
+    }
+    else
+    {
+        if (!(inRange(removeList)))
+        {
+            return 0.00;
+        }
+    }
+
+
+
+
 
     std::stringstream ss;
     std::stringstream molStream(molString);
@@ -271,7 +302,7 @@ void ColoredMol::writeScores(std::vector<float> scoreList, bool isRec)
 }
 
 
-bool ColoredMol::inRange(std::list<int> atomList)
+bool ColoredMol::inRange(std::set<int> atomList)
 {
     float x = cenCoords[0];
     float y = cenCoords[1];
