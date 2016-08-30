@@ -74,7 +74,7 @@ void ColoredMol::print()
     std::cout << "verbose: " << verbose << '\n';
 }
 
-float ColoredMol::removeAndScore(std::set<int> removeList, bool isRec)
+float ColoredMol::removeAndScore(std::vector<bool> removeList, bool isRec)
 {
     std::string molString;
     OBMol mol;
@@ -89,25 +89,38 @@ float ColoredMol::removeAndScore(std::set<int> removeList, bool isRec)
         mol = hLigMol;
     }
 
-    if(!(isRec))
+    if(!(isRec)) //if ligand
     {
         OBAtom* atom;
-        for(auto i = removeList.begin(); i != removeList.end(); ++i)
+        for(int i = 0;i < removeList.size(); ++i)
         {
-            atom = mol.GetAtom(*i);
+            if (removeList[i]) //index is in removeList
+            {
+            atom = mol.GetAtom(i);
             FOR_NBORS_OF_ATOM(neighbor, atom)
             {
                 if(neighbor->GetAtomicNum() == 1)
                 {
                     std::cout << "adding: " << neighbor->GetIdx() << '\n';
-                    removeList.insert(neighbor->GetIdx());
+                    removeList[neighbor->GetIdx()] = true;
                 }
+            }
             }
         }
     }
-    else
+    else //if receptor
     {
-        if (!(inRange(removeList)))
+        //make set for inRange test
+        std::set<int> removeSet;
+        for (int i = 0; i < removeList.size(); ++i)
+        {
+            if (removeList[i])
+            {
+                removeSet.insert(i);
+            }
+        }
+
+       if (!(inRange(removeSet)))
         {
             return 0.00;
         }
@@ -133,21 +146,22 @@ float ColoredMol::removeAndScore(std::set<int> removeList, bool isRec)
             std::istringstream iss(newLine);
             int d;
 
-            while (iss >> d)
+            while (iss >> d) // add all CONECT fields to list
             {
                 conNums.push_back(d);
             }
 
-            bool valid = true;
+            bool valid;
 
-            for( auto j = removeList.begin(); j != removeList.end(); ++j) // list to remove
+            if (removeList[firstNum] == true) //first CONECT record is in list, remove whole line
             {
-                if (firstNum == *j) //first CONECT record is in list, remove whole line
-                {
-                    valid = false;
-                    break;
-                }
+                valid = false;
             }
+            else
+            {
+                valid = true;
+            }
+           
 
             if(valid)
             {
@@ -155,18 +169,7 @@ float ColoredMol::removeAndScore(std::set<int> removeList, bool isRec)
                 bool hit;
                 for(auto i = conNums.begin(); i != conNums.end() ; ++i) //list of nums in line
                 {
-                        hit = false;
-                        for( auto j = removeList.begin(); j != removeList.end(); ++j) // list to remove
-                        {
-                            //std::cout << *i << "|" << ia[j] << '\n';
-                            if(*i == *j) //number in removal list
-                            {
-                                hit = true;
-                                break;
-                            }
-                        }
-
-                        if (!(hit))
+                        if(removeList[*i] == false) //number in removal list
                         {
                             outNums.insert(*i);
                         }
@@ -190,30 +193,18 @@ float ColoredMol::removeAndScore(std::set<int> removeList, bool isRec)
 
             }
         }
-        if((line.find("HETATM") < std::string::npos) ||
+        else if((line.find("HETATM") < std::string::npos) ||
             (line.find("ATOM") < std::string::npos))
         {
             bool keepLine = true;
-            std::string indexString = line.substr(6,5);
-            int index = std::stoi(indexString);
+            std::string firstNumString = line.substr(6,5);
+            int firstNum = std::stoi(firstNumString);
 
-            for( auto i = removeList.begin(); i != removeList.end(); ++i) // list to remove
-            {
-                if (*i == index)
-                {
-                    keepLine = false;
-                    break;
-                }
-            }
-            if ( keepLine )
+            if (!(removeList[firstNum])) //remove line if in list
             {
                 ss << line << '\n';
             }
-            else
-            {
-                //std::cout << "removing line below\n";
-                //std::cout << line << '\n';
-            }
+
 
         }
     }
@@ -221,6 +212,12 @@ float ColoredMol::removeAndScore(std::set<int> removeList, bool isRec)
 
     std::cout << ss.str();
 
+    static int count = 0;
+    std::ofstream pdbOut;
+    pdbOut.open("out" + std::to_string(count) + ".pdb");
+    pdbOut << ss.str();
+    pdbOut.close();
+    count++;
     return scoreVal;
 }
 void ColoredMol::addHydrogens()
@@ -379,7 +376,7 @@ void ColoredMol::removeResidues()
     std::vector<float> scoreDict(hRecMol.NumAtoms() + 1, 0.00);
     std::string lastRes = "";
     std::string currRes;
-    std::set<int> atomList;
+    std::vector<bool> atomList (hRecMol.NumAtoms() + 1, false);
     std::set<std::string> resList;
 
 
@@ -419,7 +416,7 @@ void ColoredMol::removeResidues()
                     std::string indexString = line.substr(6,5);
                     int index = std::stoi(indexString);
                     //std::cout << index << '\n';
-                    atomList.insert(index);
+                    atomList[index] = true;
                 }
             }
         }
@@ -431,7 +428,10 @@ void ColoredMol::removeResidues()
         
         for ( auto f : atomList)
         {
+            if(f)
+            {
             scoreDict[f] = scoreVal;
+            }
         }
         
 
@@ -452,7 +452,7 @@ void ColoredMol::removeEachAtom()
 
     std::string indexString;
     int index;
-    std::set<int> removeList;
+    std::vector<bool> removeList (hLigMol.NumAtoms() + 1);
     float scoreVal;
 
     while(std::getline(ss, line))
@@ -462,14 +462,19 @@ void ColoredMol::removeEachAtom()
         {
             indexString = line.substr(6, 5);
             index = std::stoi(indexString);
-            removeList.insert(index);
+            if (hLigMol.GetAtom(index)->GetAtomicNum() != 1)
+            {
+                removeList[index] = true;
 
-            scoreVal = removeAndScore(removeList, false);
+                scoreVal = removeAndScore(removeList, false);
+                removeList[index] = false;
 
-            scoreDict[index] = scoreVal;
-            removeList.clear();
+                scoreDict[index] = scoreVal;
+            }
         }
+
     }
+
 
 }
 
