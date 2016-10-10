@@ -4,16 +4,22 @@
 #include <openbabel/obconversion.h>
 #include <openbabel/obiter.h>
 #include <openbabel/mol.h>
-#include "ColoredMol.h"
+#include "visualize.hpp"
+#include <boost/filesystem.hpp>
+//#include "cnn_scorer.h"
+//#include "molgetter.h"
+//#include "model.h"
 
 using namespace OpenBabel;
 
+/*
+ColoredMol::ColoredMol (std::string inLigName, std::string inRecName, std::string inModel, std::string inWeights, float inSize, std::string inOutRec, std::string inOutLig, const cnn_options& cnnopts, FlexInfo& finfo, tee& log, const vec& center, bool inNo_frag, bool inVerbose)
+*/
 ColoredMol::ColoredMol (std::string inLigName, std::string inRecName, std::string inModel, std::string inWeights, float inSize, std::string inOutRec, std::string inOutLig, bool inNo_frag, bool inVerbose)
     {
-        std::cout << "constructor called" << '\n';
         ligName = inLigName;
         recName = inRecName;
-        model = inModel;
+        cnnmodel = inModel;
         weights = inWeights;
         size = inSize;
         outRec = inOutRec;
@@ -21,17 +27,63 @@ ColoredMol::ColoredMol (std::string inLigName, std::string inRecName, std::strin
         no_frag = inNo_frag;
         verbose = inVerbose;
 
+        /*
+        MolGetter mols;
+        mols.create_init_model(recName, "", finfo, log);
+        model* testrec = new model;
+        model* testlig = new model;
+        CNNScorer cnn_scorer(cnnopts, center, mols.getInitModel());
+        mols.setInputFile(ligName);
+        bool worked = mols.readMoleculeIntoModel(*testlig);
+        std::cout << "Worked: " << worked << '\n';
+        float theScore = cnn_scorer.score(*testlig);
+        std::cout << "SCORE: " << theScore << '\n';
+
+        std::cout << "END COLOR HERE" << '\n';
+        */
+
     }
 
 void ColoredMol::color()
 {
-    std::cout << "color called" << '\n'; std::vector<float> test = {-58.3, 1.23, 2.34, 3.45};
     std::set<int> test3 = {400, 1000};
-    transform(test);
+
     OBConversion conv;
-    conv.SetInFormat("PDB");
+
+    std::string ext = boost::filesystem::extension(ligName);
+    if(ext.compare(".pdb") == 0)
+    {
+        conv.SetInFormat("PDB");
+    }
+    else if(ext.compare(".pdbqt") == 0)
+    {
+        conv.SetInFormat("PDBQT");
+    }
+    else
+    {
+        std::cout << "File extension not supported: " << ligName << '\n';
+        std::cout << "Please use .pdb or .pdbqt for ligand\n";
+        exit(0);
+    }
+
     conv.ReadFile(&ligMol, ligName);
+
+    ext = boost::filesystem::extension(recName);
+    if(ext.compare(".pdb") == 0)
+    {
+      conv.SetInFormat("PDB");
+    }
+    else
+    {
+        std::cout << "File extension not supported: " << recName << '\n';
+        std::cout << "Please use .pdb for receptor\n";
+        exit(0);
+    }
+
     conv.ReadFile(&recMol, recName);
+
+    std::string ligPDBQT = conv.WriteString(&ligMol);
+    std::cout << ligPDBQT << '\n';
     int x [] = {2, 24, 25};
 
 
@@ -49,8 +101,8 @@ void ColoredMol::color()
     writeTest[4] = 999999999;
     writeTest[5] = 48.45555555;
     writeScores(writeTest, true);
-    
-    /*
+
+        /*
     std::cout << "before\n";
     removeResidues();
     std::cout << "after\n";
@@ -58,7 +110,7 @@ void ColoredMol::color()
 
     //float garbage = removeAndScore(test3, true);
 
-    //removeResidues();
+    removeResidues();
     removeEachAtom();
 }
 
@@ -66,7 +118,7 @@ void ColoredMol::print()
 {
     std::cout << "ligName: " << ligName << '\n';
     std::cout << "recName: " << recName << '\n';
-    std::cout << "model: " << model << '\n';
+    std::cout << "cnnmodel: " << cnnmodel << '\n';
     std::cout << "size: " << size << '\n';
     std::cout << "outRec: " << outRec << '\n';
     std::cout << "outLig: " << outLig << '\n';
@@ -101,7 +153,7 @@ float ColoredMol::removeAndScore(std::vector<bool> removeList, bool isRec)
             {
                 if(neighbor->GetAtomicNum() == 1)
                 {
-                    std::cout << "adding: " << neighbor->GetIdx() << '\n';
+                    //std::cout << "adding: " << neighbor->GetIdx() << '\n';
                     removeList[neighbor->GetIdx()] = true;
                 }
             }
@@ -133,74 +185,18 @@ float ColoredMol::removeAndScore(std::vector<bool> removeList, bool isRec)
     std::stringstream ss;
     std::stringstream molStream(molString);
 
+    ss << "ROOT\n"; //add necessary lines for gnina parsing
+
     std::string line;
     while(std::getline(molStream, line))
     {
-        std::vector<int> conNums;
-        if(line.find("CONECT") < std::string::npos)
-        {
-            std::string newLine = line.substr(11,std::string::npos);
-            std::string first = line.substr(6,5);
-            int firstNum = std::stoi(first);
-
-            std::istringstream iss(newLine);
-            int d;
-
-            while (iss >> d) // add all CONECT fields to list
-            {
-                conNums.push_back(d);
-            }
-
-            bool valid;
-
-            if (removeList[firstNum] == true) //first CONECT record is in list, remove whole line
-            {
-                valid = false;
-            }
-            else
-            {
-                valid = true;
-            }
-           
-
-            if(valid)
-            {
-                std::set<int> outNums;
-                bool hit;
-                for(auto i = conNums.begin(); i != conNums.end() ; ++i) //list of nums in line
-                {
-                        if(removeList[*i] == false) //number in removal list
-                        {
-                            outNums.insert(*i);
-                        }
-                }
-
-                if (outNums.size() > 0) //don't print line if no atoms to connect
-                {
-
-                    ss << "CONECT";
-                    ss.width(5);
-                    ss << std::right << firstNum;
-                    for ( auto i = outNums.begin(); i != outNums.end(); ++i)
-                    {
-                        ss.width(5);
-                        ss << std::right << *i;
-                    }
-                    ss << '\n';
-                }
-
-                outNums.clear();
-
-            }
-        }
-        else if((line.find("HETATM") < std::string::npos) ||
+        if((line.find("HETATM") < std::string::npos) ||
             (line.find("ATOM") < std::string::npos))
         {
-            bool keepLine = true;
-            std::string firstNumString = line.substr(6,5);
+            std::string firstNumString = line.substr(7,5);
             int firstNum = std::stoi(firstNumString);
 
-            if (!(removeList[firstNum])) //remove line if in list
+            if (!(removeList[firstNum])) //don't write line if in list
             {
                 ss << line << '\n';
             }
@@ -208,35 +204,47 @@ float ColoredMol::removeAndScore(std::vector<bool> removeList, bool isRec)
 
         }
     }
+    ss << "ENDROOT\n";
+    ss << "TORSDOF 0\n";
+
     float scoreVal = score();
 
-    std::cout << ss.str();
+    //std::cout << ss.str();
 
     static int count = 0;
-    std::ofstream pdbOut;
-    pdbOut.open("out" + std::to_string(count) + ".pdb");
-    pdbOut << ss.str();
-    pdbOut.close();
+    std::ofstream fileOut;
+    fileOut.open("out" + std::to_string(count) + ".pdbqt");
+    fileOut << ss.str();
+    fileOut.close();
     count++;
     return scoreVal;
 }
 void ColoredMol::addHydrogens()
 {
-    std::cout << "adding hydrogens\n";
     recMol.AddHydrogens();
     ligMol.AddHydrogens();
 
     OBConversion conv;
-    conv.SetOutFormat("PDB");
     conv.SetInFormat("PDB");
 
-    hRec = conv.WriteString(&recMol);
-    hLig = conv.WriteString(&ligMol);
+    conv.SetOutFormat("PDB");
+    recPDB = conv.WriteString(&recMol); //store rec pdb to preserve residue info
 
+    
+    conv.SetOutFormat("PDBQT"); //use pdbqt to make passing to parse_pdbqt easier
+    conv.AddOption("r",OBConversion::OUTOPTIONS);
+    conv.AddOption("c",OBConversion::OUTOPTIONS);
+    hLig = conv.WriteString(&ligMol);
+    std::cout << "over\n";
+    hRec = conv.WriteString(&recMol);
+    std::cout << "over\n";
+
+    std::cout << hRec;
+    exit(0);
+
+    conv.SetInFormat("PDBQT");
     conv.ReadString(&hRecMol, hRec);
     conv.ReadString(&hLigMol, hLig);
-
-    std::cout << "finished adding hydrogens\n";
 }
 
 float ColoredMol::score(){return (float)1.11;}
@@ -258,8 +266,8 @@ void ColoredMol::writeScores(std::vector<float> scoreList, bool isRec)
     std::ofstream outFile;
     outFile.open(filename);
 
-    outFile << "CNN MODEL: " << model << '\n';
-    outFile << "CNN WEIGHTS: " << model << '\n';
+    outFile << "CNN MODEL: " << cnnmodel << '\n';
+    outFile << "CNN WEIGHTS: " << weights << '\n';
 
     std::stringstream molStream(molString);
     std::string line;
@@ -334,7 +342,7 @@ bool ColoredMol::inRange(std::set<int> atomList)
 
 void ColoredMol::ligCenter()
 {
-    vector3 cen = ligMol.Center(0);
+    vector3 cen = hLigMol.Center(0);
     cenCoords[0] = cen.GetX();
     cenCoords[1] = cen.GetY();
     cenCoords[2] = cen.GetZ();
@@ -413,7 +421,7 @@ void ColoredMol::removeResidues()
             {
                 if(line.substr(23,4) == *i)
                 {
-                    std::string indexString = line.substr(6,5);
+                    std::string indexString = line.substr(7,5);
                     int index = std::stoi(indexString);
                     //std::cout << index << '\n';
                     atomList[index] = true;
@@ -438,7 +446,6 @@ void ColoredMol::removeResidues()
         atomList.clear();
 
         
-
     }
 
     writeScores(scoreDict, true);
@@ -457,6 +464,7 @@ void ColoredMol::removeEachAtom()
 
     while(std::getline(ss, line))
     {
+      
         if ((line.find("ATOM") < std::string::npos) ||
             (line.find("HETATM") < std::string::npos))
         {
