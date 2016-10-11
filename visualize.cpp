@@ -46,8 +46,6 @@ ColoredMol::ColoredMol (std::string inLigName, std::string inRecName, std::strin
 
 void ColoredMol::color()
 {
-    std::set<int> test3 = {400, 1000};
-
     OBConversion conv;
 
     std::string ext = boost::filesystem::extension(ligName);
@@ -82,33 +80,8 @@ void ColoredMol::color()
 
     conv.ReadFile(&recMol, recName);
 
-    std::string ligPDBQT = conv.WriteString(&ligMol);
-    std::cout << ligPDBQT << '\n';
-    int x [] = {2, 24, 25};
-
-
-    std::cout << "Number of lig atoms: " << ligMol.NumAtoms() << '\n';
-    std::cout << "Number of rec atoms: " << recMol.NumAtoms() << '\n';
-
     addHydrogens();
     ligCenter();
-    std::cout << "inRange: " << inRange(test3) << '\n';
-
-    std::vector<float> writeTest (hRecMol.NumAtoms(), 0.00);
-    writeTest[2] = 3.45;
-    writeTest[488] = 818.93;
-    writeTest[3] = 0.0323343;
-    writeTest[4] = 999999999;
-    writeTest[5] = 48.45555555;
-    writeScores(writeTest, true);
-
-        /*
-    std::cout << "before\n";
-    removeResidues();
-    std::cout << "after\n";
-    */
-
-    //float garbage = removeAndScore(test3, true);
 
     removeResidues();
     removeEachAtom();
@@ -178,10 +151,6 @@ float ColoredMol::removeAndScore(std::vector<bool> removeList, bool isRec)
         }
     }
 
-
-
-
-
     std::stringstream ss;
     std::stringstream molStream(molString);
 
@@ -208,16 +177,6 @@ float ColoredMol::removeAndScore(std::vector<bool> removeList, bool isRec)
     ss << "TORSDOF 0\n";
 
     float scoreVal = score();
-
-    //std::cout << ss.str();
-
-    static int count = 0;
-    std::ofstream fileOut;
-    fileOut.open("out" + std::to_string(count) + ".pdbqt");
-    fileOut << ss.str();
-    fileOut.close();
-    count++;
-    return scoreVal;
 }
 void ColoredMol::addHydrogens()
 {
@@ -235,12 +194,7 @@ void ColoredMol::addHydrogens()
     conv.AddOption("r",OBConversion::OUTOPTIONS);
     conv.AddOption("c",OBConversion::OUTOPTIONS);
     hLig = conv.WriteString(&ligMol);
-    std::cout << "over\n";
     hRec = conv.WriteString(&recMol);
-    std::cout << "over\n";
-
-    std::cout << hRec;
-    exit(0);
 
     conv.SetInFormat("PDBQT");
     conv.ReadString(&hRecMol, hRec);
@@ -263,8 +217,7 @@ void ColoredMol::writeScores(std::vector<float> scoreList, bool isRec)
         molString = hLig;
     }
 
-    std::ofstream outFile;
-    outFile.open(filename);
+    std::ofstream outFile; outFile.open(filename);
 
     outFile << "CNN MODEL: " << cnnmodel << '\n';
     outFile << "CNN WEIGHTS: " << weights << '\n';
@@ -346,7 +299,6 @@ void ColoredMol::ligCenter()
     cenCoords[0] = cen.GetX();
     cenCoords[1] = cen.GetY();
     cenCoords[2] = cen.GetZ();
-    std::cout << cenCoords[0] << "|" << cenCoords[1] << "|" << cenCoords[2] << '\n';
 }
 
 std::vector<float> ColoredMol::transform(std::vector<float> inList)
@@ -380,15 +332,11 @@ std::vector<float> ColoredMol::transform(std::vector<float> inList)
 }
 void ColoredMol::removeResidues()
 {
-    std::cout << "help";
     std::vector<float> scoreDict(hRecMol.NumAtoms() + 1, 0.00);
     std::string lastRes = "";
     std::string currRes;
     std::vector<bool> atomList (hRecMol.NumAtoms() + 1, false);
     std::set<std::string> resList;
-
-
-    std::cout << '\n' << hLig.back() << '\n';
 
     std::string molString = hRec;
     std::stringstream molStream(molString);
@@ -399,11 +347,9 @@ void ColoredMol::removeResidues()
            (line.find("HETATM") < std::string::npos))
         {
             currRes = line.substr(23,4);
-            std::cout << currRes << '\n';
             if(line.substr(23,4) != lastRes)
             {
                 resList.insert(currRes);
-                std::cout << "Adding ^\n";
                 lastRes = currRes;
             }
         }
@@ -413,7 +359,6 @@ void ColoredMol::removeResidues()
     {
         molStream.clear();
         molStream.str(molString);
-        std::cout << "RES: " << *i << '\n';
         while(std::getline(molStream, line))
         {
             if((line.find("ATOM") < std::string::npos) ||
@@ -421,17 +366,14 @@ void ColoredMol::removeResidues()
             {
                 if(line.substr(23,4) == *i)
                 {
-                    std::string indexString = line.substr(7,5);
+                    std::string indexString = line.substr(6,5);
                     int index = std::stoi(indexString);
-                    //std::cout << index << '\n';
                     atomList[index] = true;
                 }
             }
         }
         float scoreVal = removeAndScore(atomList, true);
-        std::cout << "res score: " << scoreVal << '\n';
 
-        std::cout << atomList.size() << '\n';
         
         
         for ( auto f : atomList)
@@ -444,6 +386,7 @@ void ColoredMol::removeResidues()
         
 
         atomList.clear();
+        atomList = std::vector<bool>(hRecMol.NumAtoms() + 1, false);
 
         
     }
